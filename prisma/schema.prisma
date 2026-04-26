@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider      = "prisma-client"
+  output        = "../src/prisma"
+  moduleFormat  = "esm"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x", "rhel-openssl-1.0.x", "debian-openssl-3.0.x", "darwin-arm64", "windows", "debian-openssl-3.0.x", "linux-arm64-openssl-3.0.x", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  id         String   @id @default(cuid())
+  name       String   @db.Text
+  level      Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @default(now()) @db.Timestamptz
+  users      User[]
+
+  @@unique([name, level], name: "role_name_level_unique")
+  @@index([name], name: "role_name_idx")
+  @@index([level], name: "role_level_idx")
+  @@index([created_at], name: "role_created_at_idx")
+  @@index([updated_at], name: "role_updated_at_idx")
+  @@map("roles")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId], name: "account_provider_providerAccountId_unique")
+  @@index([userId], name: "account_userId_idx")
+  @@index([type], name: "account_type_idx")
+  @@index([provider], name: "account_provider_idx")
+  @@index([providerAccountId], name: "account_providerAccountId_idx")
+  @@index([refresh_token], name: "account_refresh_token_idx")
+  @@index([access_token], name: "account_access_token_idx")
+  @@index([expires_at], name: "account_expires_at_idx")
+  @@index([token_type], name: "account_token_type_idx")
+  @@index([scope], name: "account_scope_idx")
+  @@index([id_token], name: "account_id_token_idx")
+  @@index([session_state], name: "account_session_state_idx")
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionToken, userId], name: "session_sessionToken_userId_unique")
+  @@index([sessionToken], name: "session_sessionToken_idx")
+  @@index([userId], name: "session_userId_idx")
+  @@map("sessions")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  clerk_id          String?   @unique @db.Text
+  name              String    @db.Text
+  email             String    @unique @db.Text
+  phone             String?   @unique @db.Text
+  password_hash     String?   @db.Text
+  avatar            String?   @db.Text
+  role              Role      @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  role_id           String
+  email_verified_at DateTime?
+  last_login_at     DateTime?
+  is_active         Boolean   @default(true)
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @default(now()) @db.Timestamptz
+  accounts          Account[]
+  sessions          Session[]
+
+  @@unique([email, role_id], name: "user_email_role_id_unique")
+  @@index([email], name: "user_email_idx")
+  @@index([phone], name: "user_phone_idx")
+  @@index([created_at], name: "user_created_at_idx")
+  @@index([updated_at], name: "user_updated_at_idx")
+  @@index([email_verified_at], name: "user_email_verified_at_idx")
+  @@index([last_login_at], name: "user_last_login_at_idx")
+  @@index([is_active], name: "user_is_active_idx")
+  @@index([clerk_id], name: "user_clerk_id_idx")
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token], name: "verification_token_identifier_token_unique")
+  @@index([identifier], name: "verification_token_identifier_idx")
+  @@index([token], name: "verification_token_token_idx")
+  @@index([expires], name: "verification_token_expires_idx")
+  @@map("verification_tokens")
+}
+
+model Setting {
+  id         String   @id @default(cuid())
+  key        String   @db.Text
+  value      String   @db.Text
+  group_name String   @db.Text
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @default(now()) @db.Timestamptz
+
+  @@unique([key, group_name], name: "setting_key_group_name_unique")
+  @@index([key], name: "setting_key_idx")
+  @@index([group_name], name: "setting_group_name_idx")
+  @@map("settings")
+}
