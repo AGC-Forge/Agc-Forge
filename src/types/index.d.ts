@@ -16,6 +16,19 @@ declare global {
     enable_github_provider: boolean;
     enable_google_provider: boolean;
   }
+
+  type AIProvider = 'anthropic' | 'openai' | 'google' | "xai" | "deepseek" | "bytedance" | "kling" | "qwen" | "wanai" | "pixverse";
+  type AISkill = "text" | "image" | "video" | "audio" | "mutimodal"
+  interface AIModel {
+    id: string;
+    label: string;
+    skill: AISkill;
+  }
+  interface AIModelProvider {
+    provider: AIProvider;
+    label: string;
+    models: AIModel[];
+  }
 }
 
 export { };
