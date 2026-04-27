@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  setup-server.sh — Konfigurasi services di Ubuntu baru                  ║
+# ║  Jalankan SEBELUM deploy.sh                                              ║
+# ║  Usage: sudo bash setup-server.sh                                        ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+set -euo pipefail
+
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+log()  { echo -e "${GREEN}✓${NC} $*"; }
+warn() { echo -e "${YELLOW}⚠${NC} $*"; }
+step() { echo -e "\n${BLUE}══ $* ══${NC}"; }
+
+# ── Variabel — UBAH SESUAI KEBUTUHAN ─────────────────────────────────────────
+
+DB_NAME="aichat_db"
+DB_USER="aichat_user"
+DB_PASS="$(openssl rand -base64 24)"         # random password
+REDIS_PASS=""                                  # kosong = tanpa password
+MINIO_ROOT_USER="minioadmin"
+MINIO_ROOT_PASS="$(openssl rand -base64 24)"
+APP_DIR="/var/www/aichat"
+
+# ── 1. PostgreSQL Setup ───────────────────────────────────────────────────────
+
+step "PostgreSQL Setup"
+
+# Buat user dan database
+sudo -u postgres psql << EOF
+-- Buat user
+DO \$\$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_USER}') THEN
+    CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';
+  END IF;
+END \$\$;
+
+-- Buat database
+SELECT 'CREATE DATABASE ${DB_NAME} OWNER ${DB_USER}' WHERE NOT EXISTS (
+  SELECT FROM pg_database WHERE datname = '${DB_NAME}'
+)\gexec
+
+-- Grant privileges
+GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};
+ALTER DATABASE ${DB_NAME} OWNER TO ${DB_USER};
+
+-- Extension yang dibutuhkan
+\c ${DB_NAME}
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+EOF
+
+log "PostgreSQL: database '${DB_NAME}' dibuat untuk user '${DB_USER}'"
+log "PostgreSQL password: ${DB_PASS}"
+
+# ── 2. PostgreSQL Performance Tuning ─────────────────────────────────────────
+
+step "PostgreSQL Performance Tuning"
+
+# Dapatkan RAM server (MB)
+TOTAL_RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
+SHARED_BUFFERS=$((TOTAL_RAM_MB / 4))MB
+EFFECTIVE_CACHE=$((TOTAL_RAM_MB * 3 / 4))MB
+WORK_MEM=$((TOTAL_RAM_MB / 50))MB
+
+cat > /etc/postgresql/*/main/conf.d/aichat.conf << PGCONF
+# AI Chat Platform PostgreSQL Tuning
+shared_buffers = ${SHARED_BUFFERS}
+effective_cache_size = ${EFFECTIVE_CACHE}
+work_mem = ${WORK_MEM}
+maintenance_work_mem = 256MB
+max_connections = 100
+wal_level = replica
+max_wal_senders = 3
+wal_keep_size = 1GB
+log_min_duration_statement = 1000  # log query > 1 detik
+log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d '
+PGCONF
+
+systemctl restart postgresql
+log "PostgreSQL di-restart dengan tuning baru"
+
+# ── 3. Redis Setup ────────────────────────────────────────────────────────────
+
+step "Redis Setup"
+
+mkdir -p /etc/redis/redis.conf.d
+
+cat > /etc/redis/redis.conf.d/aichat.conf << REDISCONF
+# AI Chat Platform Redis Config
+bind 127.0.0.1 ::1
+port 6379
+daemonize no
+maxmemory 512mb
+maxmemory-policy allkeys-lru
+save 900 1
+save 300 10
+save 60 10000
+appendonly yes
+appendfilename "appendonly.aof"
+REDISCONF
+
+systemctl enable --now redis-server
+log "Redis berjalan di 127.0.0.1:6379"
+
+# ── 4. MinIO via Docker ───────────────────────────────────────────────────────
+
+step "MinIO Docker Setup"
+
+# Install Docker jika belum ada
+if ! command -v docker &>/dev/null; then
+    curl -fsSL https://get.docker.com | sh
+    systemctl enable --now docker
+    log "Docker terinstall"
+fi
+
+# Buat direktori data MinIO
+mkdir -p /opt/minio/data
+
+# Stop container lama jika ada
+docker stop minio 2>/dev/null || true
+docker rm minio 2>/dev/null || true
+
+# Jalankan MinIO
+docker run -d \
+    --name minio \
+    --restart unless-stopped \
+    -p 9000:9000 \
+    -p 9001:9001 \
+    -v /opt/minio/data:/data \
+    -e "MINIO_ROOT_USER=${MINIO_ROOT_USER}" \
+    -e "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASS}" \
+    quay.io/minio/minio:latest \
+    server /data --console-address ":9001"
+
+log "MinIO berjalan di :9000 (API) dan :9001 (Console)"
+log "MinIO root user: ${MINIO_ROOT_USER}"
+log "MinIO root pass: ${MINIO_ROOT_PASS}"
+
+# Tunggu MinIO ready
+sleep 5
+
+# Buat bucket via mc (MinIO Client)
+if ! command -v mc &>/dev/null; then
+    curl -sO https://dl.min.io/client/mc/release/linux-amd64/mc
+    chmod +x mc && mv mc /usr/local/bin/
+fi
+
+mc alias set local http://localhost:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASS}" --api S3v4
+mc mb --ignore-existing local/aichat-media
+mc anonymous set download local/aichat-media    # public read
+log "MinIO bucket 'aichat-media' dibuat (public read)"
+
+# ── 5. Generate .env file ─────────────────────────────────────────────────────
+
+step "Generate .env File"
+
+mkdir -p "$APP_DIR"
+
+NEXTAUTH_SECRET=$(openssl rand -base64 32)
+ENCRYPTION_KEY=$(openssl rand -hex 32)
+
+cat > "$APP_DIR/.env.generated" << ENVFILE
+# ═══════════════════════════════════════════════════════════════
+# GENERATED by setup-server.sh — $(date)
+# Rename ke .env dan lengkapi field yang kosong
+# ═══════════════════════════════════════════════════════════════
+
+# Database
+DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
+
+# NextAuth
+NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
+NEXTAUTH_URL="https://yourdomain.com"
+
+# OAuth (isi manual)
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
+# Puter.js
+PUTER_AUTH_TOKEN=""
+PUTER_GET_AUTO_TOKEN_FROM_LOGGED_USER="false"
+NEXT_PUBLIC_PUTER_AUTO_TOKEN="false"
+PUTER_TEST_MODE="false"
+
+# MinIO
+MINIO_ENDPOINT="localhost"
+MINIO_PORT="9000"
+MINIO_USE_SSL="false"
+MINIO_ACCESS_KEY="${MINIO_ROOT_USER}"
+MINIO_SECRET_KEY="${MINIO_ROOT_PASS}"
+MINIO_BUCKET="aichat-media"
+MINIO_REGION="us-east-1"
+MINIO_PUBLIC_URL=""
+
+# Redis
+REDIS_URL="redis://127.0.0.1:6379"
+
+# Email (isi salah satu)
+RESEND_API_KEY=""
+SMTP_HOST=""
+SMTP_PORT="587"
+SMTP_SECURE="false"
+SMTP_USER=""
+SMTP_PASS=""
+EMAIL_FROM="AI Chat <noreply@yourdomain.com>"
+
+# Encryption
+ENCRYPTION_KEY="${ENCRYPTION_KEY}"
+
+# Seed
+ADMIN_EMAIL="admin@yourdomain.com"
+ADMIN_PASSWORD="Admin@$(openssl rand -hex 4 | tr '[:lower:]' '[:upper:]')1"
+
+# App
+NEXT_PUBLIC_APP_NAME="AI Chat"
+NEXT_PUBLIC_APP_URL="https://yourdomain.com"
+NODE_ENV="production"
+ENVFILE
+
+log ".env template dibuat di $APP_DIR/.env.generated"
+warn "Rename ke .env dan lengkapi field yang masih kosong!"
+
+# ── 6. Logrotate config ───────────────────────────────────────────────────────
+
+step "Logrotate Setup"
+cat > /etc/logrotate.d/pm2-aichat << 'LOGCONF'
+/var/log/pm2/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    copytruncate
+}
+LOGCONF
+
+mkdir -p /var/log/pm2
+log "Logrotate dikonfigurasi"
+
+# ── 7. Summary ────────────────────────────────────────────────────────────────
+
+step "SETUP SELESAI ✅"
+echo ""
+echo "═══════════════════════════════════════════════════════════════"
+echo "  DATABASE"
+echo "  Host:     localhost:5432"
+echo "  DB:       ${DB_NAME}"
+echo "  User:     ${DB_USER}"
+echo "  Password: ${DB_PASS}"
+echo ""
+echo "  REDIS"
+echo "  URL:      redis://127.0.0.1:6379"
+echo ""
+echo "  MINIO"
+echo "  API:      http://localhost:9000"
+echo "  Console:  http://localhost:9001"
+echo "  User:     ${MINIO_ROOT_USER}"
+echo "  Password: ${MINIO_ROOT_PASS}"
+echo "═══════════════════════════════════════════════════════════════"
+echo ""
+warn "Simpan credentials di atas di tempat yang aman!"
+echo ""
+log "Langkah selanjutnya:"
+echo "  1. Clone repo ke $APP_DIR"
+echo "  2. cp $APP_DIR/.env.generated $APP_DIR/.env"
+echo "  3. Edit .env — isi NEXTAUTH_URL, OAuth keys, domain"
+echo "  4. sudo bash deploy.sh --first"
+echo "  5. certbot --nginx -d yourdomain.com"
+echo "  6. bash deploy.sh"

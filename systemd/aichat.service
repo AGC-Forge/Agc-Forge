@@ -1,0 +1,50 @@
+# /etc/systemd/system/aichat.service
+# PM2 alternative using systemd directly
+#
+# Install:
+#   sudo cp aichat.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now aichat
+
+[Unit]
+Description=AI Chat Platform (Next.js)
+After=network.target postgresql.service redis-server.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/aichat
+
+# Environment
+EnvironmentFile=/var/www/aichat/.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Command
+ExecStart=/usr/bin/node_modules/.bin/next start
+ExecStartPre=/usr/bin/node_modules/.bin/prisma migrate deploy
+
+# Restart policy
+Restart=always
+RestartSec=10s
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+# Logs
+StandardOutput=append:/var/log/aichat/app.log
+StandardError=append:/var/log/aichat/error.log
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Security
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/aichat /var/log/aichat /tmp
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

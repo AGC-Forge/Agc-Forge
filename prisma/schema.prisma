@@ -337,7 +337,7 @@ model Setting {
 
 model PuterSession {
   id             String    @id @default(cuid())
-  userId         String
+  userId         String    @unique(map: "puter_session_userId_unique")
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// JWT token dari puter.auth.signIn() — format: "eyJhbG..."
   /// Disimpan encrypted menggunakan AES-256-GCM (sama seperti UserApiKey)
@@ -357,8 +357,6 @@ model PuterSession {
   created_at     DateTime  @default(now()) @db.Timestamptz
   updated_at     DateTime  @updatedAt @db.Timestamptz
 
-  @@unique([userId], name: "puter_session_userId_unique") // satu token aktif per user
-  @@index([userId], name: "puter_session_userId_idx")
   @@index([is_valid], name: "puter_session_is_valid_idx")
   @@map("puter_sessions")
 }

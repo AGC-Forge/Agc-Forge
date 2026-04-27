@@ -264,7 +264,7 @@ export type PuterSessionWhereUniqueInput = Prisma.AtLeast<{
   created_at?: Prisma.DateTimeFilter<"PuterSession"> | Date | string
   updated_at?: Prisma.DateTimeFilter<"PuterSession"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
-}, "id" | "puter_session_userId_unique">
+}, "id" | "userId">
 
 export type PuterSessionOrderByWithAggregationInput = {
   id?: Prisma.SortOrder

@@ -53,8 +53,6 @@ const PROVIDER_OPTIONS = [
   ...AI_MODEL_PROVIDERS.map((p) => ({ value: p.provider, label: p.label })),
 ];
 
-// ── Add Key Form ──────────────────────────────────────────────────────────────
-
 function AddKeyForm({
   onSuccess,
   onCancel,
@@ -405,7 +403,7 @@ export function ApiKeysSection({ apiKeys: initialKeys }: ApiKeysSectionProps) {
           <p className="text-sm text-zinc-600">No API key saved.</p>
           <button
             onClick={() => setShowForm(true)}
-            className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer active:scale-95"
           >
             Add first API key
           </button>

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "smoke:puter-auth": "tsx scripts/smoke-puter-auth.mts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

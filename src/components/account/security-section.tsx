@@ -171,7 +171,7 @@ export function SecuritySection({ hasPassword }: SecuritySectionProps) {
                 {isLoading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  "Ubah password"
+                  "Change password"
                 )}
               </Button>
             </div>

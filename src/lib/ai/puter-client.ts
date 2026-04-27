@@ -69,12 +69,24 @@ export async function getPuterToken(userId?: string): Promise<string> {
     return token;
   }
 
-  // Mode 1: Static token dari env
+  // Mode static: prioritas token per-user (DB) bila userId tersedia
+  if (userId) {
+    const userSession = await prisma.puterSession.findUnique({
+      where: { userId },
+      select: { token: true, is_valid: true },
+    });
+
+    if (userSession?.is_valid) {
+      return decrypt(userSession.token);
+    }
+  }
+
+  // Fallback: static token global dari env
   const token = process.env.PUTER_AUTH_TOKEN;
   if (!token) {
     throw new Error(
-      "[Puter] PUTER_AUTH_TOKEN not found in environment variables.\n" +
-      "Set PUTER_AUTH_TOKEN or enable PUTER_GET_AUTO_TOKEN_FROM_LOGGED_USER=true"
+      "[Puter] No usable token found.\n" +
+      "Save Puter token in Account page (per-user) or set PUTER_AUTH_TOKEN in environment."
     );
   }
 
@@ -153,6 +165,12 @@ export async function puterChatStream(params: {
         await invalidatePuterSession(params.userId);
       }
       throw new Error("Token Puter is invalid or has expired.");
+    }
+
+    if (response.status === 403) {
+      throw new Error(
+        `[Puter Chat] 403 permission_denied. Token valid, but this account/app has no access to model "${params.model}" or Puter AI API scope is not enabled.`
+      );
     }
 
     throw new Error(`[Puter Chat] ${response.status}: ${errorText}`);
@@ -298,10 +316,13 @@ export async function getPuterSessionInfo(userId: string): Promise<{
   puter_username?: string | null;
   puter_uid?: string | null;
   validated_at?: Date | null;
+  chat_ready?: boolean;
+  reason?: string;
 } | null> {
   const session = await prisma.puterSession.findUnique({
     where: { userId },
     select: {
+      token: true,
       is_valid: true,
       puter_username: true,
       puter_uid: true,
@@ -310,10 +331,47 @@ export async function getPuterSessionInfo(userId: string): Promise<{
   });
 
   if (!session) return { connected: false };
+
+  let chatReady = false;
+  let reason: string | undefined;
+
+  if (session.is_valid) {
+    try {
+      const token = decrypt(session.token);
+      const res = await fetch(`${PUTER_API_BASE}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: process.env.PUTER_CHAT_TEST_MODEL ?? "openai/gpt-4o-mini",
+          messages: [{ role: "user", content: "ping" }],
+          stream: false,
+          max_tokens: 1,
+          temperature: 0,
+        }),
+      });
+
+      if (res.ok) {
+        chatReady = true;
+      } else {
+        const text = await res.text();
+        reason = `[${res.status}] ${text}`;
+      }
+    } catch (err: any) {
+      reason = err?.message ?? "Failed to verify token permission.";
+    }
+  } else {
+    reason = "Stored Puter token is marked invalid.";
+  }
+
   return {
     connected: session.is_valid,
     puter_username: session.puter_username,
     puter_uid: session.puter_uid,
     validated_at: session.validated_at,
+    chat_ready: chatReady,
+    reason,
   };
 }

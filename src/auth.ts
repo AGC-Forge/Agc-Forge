@@ -34,7 +34,7 @@ export const authOptions: NextAuthConfig = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email dan password wajib diisi.");
+          throw new Error("Email and password are required.");
         }
 
         const user = await prisma.user.findUnique({
@@ -43,11 +43,11 @@ export const authOptions: NextAuthConfig = {
         });
 
         if (!user) {
-          throw new Error("Email tidak terdaftar.");
+          throw new Error("Email not registered.");
         }
 
         if (!user.password_hash) {
-          throw new Error("Akun ini menggunakan login sosial. Silakan login dengan GitHub atau Google.");
+          throw new Error("This account uses social login. Please log in with GitHub or Google.");
         }
 
         const isValid = await compare(
@@ -56,15 +56,15 @@ export const authOptions: NextAuthConfig = {
         );
 
         if (!isValid) {
-          throw new Error("Password salah.");
+          throw new Error("Wrong password.");
         }
 
         if (!user.email_verified_at) {
-          throw new Error("Email belum diverifikasi. Cek inbox kamu.");
+          throw new Error("Email not verified. Check your inbox.");
         }
 
         if (!user.is_active) {
-          throw new Error("Akun kamu dinonaktifkan. Hubungi admin.");
+          throw new Error("Your account has been disabled. Contact the admin.");
         }
 
         // Update last login
