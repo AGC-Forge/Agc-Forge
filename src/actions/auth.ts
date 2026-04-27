@@ -12,8 +12,6 @@ import {
   resetPasswordSchema,
 } from "@/lib/validations/auth";
 
-// ── LOGIN ────────────────────────────────────────────────────────────────────
-
 export async function loginAction(
   formData: FormData
 ): Promise<ActionResult> {
@@ -49,8 +47,6 @@ export async function loginAction(
     return { success: false, error: "Terjadi kesalahan. Coba lagi." };
   }
 }
-
-// ── REGISTER ─────────────────────────────────────────────────────────────────
 
 export async function registerAction(
   formData: FormData
@@ -130,8 +126,6 @@ export async function registerAction(
   };
 }
 
-// ── VERIFY EMAIL ──────────────────────────────────────────────────────────────
-
 export async function verifyEmailAction(token: string): Promise<ActionResult> {
   if (!token) {
     return { success: false, error: "Token tidak valid." };
@@ -161,8 +155,6 @@ export async function verifyEmailAction(token: string): Promise<ActionResult> {
 
   return { success: true, message: "Email berhasil diverifikasi! Silakan login." };
 }
-
-// ── RESEND VERIFICATION EMAIL ─────────────────────────────────────────────────
 
 export async function resendVerificationAction(
   email: string
@@ -195,8 +187,6 @@ export async function resendVerificationAction(
 
   return { success: true, message: "Link verifikasi baru sudah dikirim ke email kamu." };
 }
-
-// ── FORGOT PASSWORD ───────────────────────────────────────────────────────────
 
 export async function forgotPasswordAction(
   formData: FormData
@@ -246,8 +236,6 @@ export async function forgotPasswordAction(
     message: "Jika email terdaftar, link reset password sudah dikirim.",
   };
 }
-
-// ── RESET PASSWORD ────────────────────────────────────────────────────────────
 
 export async function resetPasswordAction(
   formData: FormData
@@ -302,13 +290,9 @@ export async function resetPasswordAction(
   return { success: true, message: "Password berhasil diubah. Silakan login." };
 }
 
-// ── LOGOUT ────────────────────────────────────────────────────────────────────
-
 export async function logoutAction(): Promise<void> {
   await signOut({ redirectTo: "/login" });
 }
-
-// ── HELPERS: Email Sender ─────────────────────────────────────────────────────
 
 async function sendVerificationEmail(
   email: string,
@@ -360,8 +344,6 @@ async function sendPasswordResetEmail(
   }
 }
 
-// ── Email via Resend ──────────────────────────────────────────────────────────
-
 async function sendWithResend(opts: {
   to: string;
   subject: string;
@@ -386,8 +368,6 @@ async function sendWithResend(opts: {
   }
 }
 
-// ── Email via Nodemailer ──────────────────────────────────────────────────────
-
 async function sendWithNodemailer(opts: {
   to: string;
   subject: string;
@@ -406,14 +386,12 @@ async function sendWithNodemailer(opts: {
   });
 
   await transporter.sendMail({
-    from: process.env.EMAIL_FROM || '"AI Chat" <noreply@yourdomain.com>',
+    from: process.env.EMAIL_FROM || '"Forge AI" <noreply@agcforge.com>',
     to: opts.to,
     subject: opts.subject,
     html: opts.html,
   });
 }
-
-// ── Email Templates ───────────────────────────────────────────────────────────
 
 function buildVerificationEmailHtml(name: string, url: string): string {
   return `
@@ -423,7 +401,7 @@ function buildVerificationEmailHtml(name: string, url: string): string {
     <body style="font-family: -apple-system, sans-serif; background: #f4f4f5; padding: 40px 0;">
       <div style="max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div style="background: #6366f1; padding: 32px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">AI Chat</h1>
+          <h1 style="color: white; margin: 0; font-size: 24px;">Forge AI</h1>
         </div>
         <div style="padding: 32px;">
           <h2 style="margin-top: 0;">Halo, ${name}! 👋</h2>
@@ -451,7 +429,7 @@ function buildResetEmailHtml(name: string, url: string): string {
     <body style="font-family: -apple-system, sans-serif; background: #f4f4f5; padding: 40px 0;">
       <div style="max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div style="background: #6366f1; padding: 32px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">AI Chat</h1>
+          <h1 style="color: white; margin: 0; font-size: 24px;">Forge AI</h1>
         </div>
         <div style="padding: 32px;">
           <h2 style="margin-top: 0;">Reset Password</h2>

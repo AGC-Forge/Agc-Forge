@@ -54,7 +54,7 @@ async function main() {
   console.log("\n⚙️  Creating default settings...");
   const settings = [
     // General
-    { key: "site_name", value: "AI Chat", group_name: "general" },
+    { key: "site_name", value: "Forge AI", group_name: "general" },
     { key: "site_description", value: "Platform Chat AI dengan berbagai model AI terkini", group_name: "general" },
     { key: "site_keywords", value: "AI, Chat, Image, Video, Generate", group_name: "general" },
     { key: "site_theme", value: "dark", group_name: "general" },

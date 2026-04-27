@@ -4,7 +4,7 @@ import { BrainCircuit } from "lucide-react";
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Forge AI Chat",
+    template: "%s | Forge AI",
     default: "Auth",
   },
 };
@@ -46,7 +46,7 @@ export default function AuthLayout({
           <BrainCircuit className="h-5 w-5 text-white" />
         </div>
         <span className="text-xl font-semibold tracking-tight text-white">
-          AI Chat
+          Forge AI
         </span>
       </Link>
 
@@ -59,7 +59,7 @@ export default function AuthLayout({
 
       {/* ── Footer ────────────────────────────────────────── */}
       <p className="relative z-10 mt-8 text-xs text-zinc-600">
-        © {new Date().getFullYear()} AI Chat. All rights reserved.
+        © {new Date().getFullYear()} Forge AI. All rights reserved.
       </p>
     </div>
   );

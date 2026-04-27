@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Forge AI Chat",
-    template: "%s | Forge AI Chat",
+    default: "Forge AI",
+    template: "%s | Forge AI",
   },
   description:
-    "AI Chat Platform with various latest models — text, image, video.",
+    "Forge AI Platform with various latest models — text, image, video.",
   keywords: [
     "AI",
     "Chat",
@@ -39,7 +39,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="id"
+      lang="en"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
