@@ -8,16 +8,34 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is not set");
 }
 
-const adapter = new PrismaPg({ connectionString: databaseUrl });
+function createPrismaClient() {
+  const logOptions = process.env.NODE_ENV === "development"
+    ? ["query", "error", "warn"] as const
+    : ["error"] as const;
 
-let prismaClient: PrismaClient;
+  if (databaseUrl?.startsWith("prisma://")) {
+    return new PrismaClient({
+      accelerateUrl: databaseUrl,
+      log: [...logOptions],
+    }).$extends(withAccelerate());
 
-if (databaseUrl.startsWith("prisma://")) {
-  prismaClient = new PrismaClient({ accelerateUrl: databaseUrl });
-} else {
-  prismaClient = new PrismaClient({ adapter });
+  }
+
+  const adapter = new PrismaPg({ connectionString: databaseUrl });
+  return new PrismaClient({
+    adapter,
+    log: [...logOptions],
+  }).$extends(withAccelerate());
 }
 
-const prisma = prismaClient.$extends(withAccelerate());
-export { prisma };
+type PrismaClientSingleton = ReturnType<typeof createPrismaClient>;
 
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClientSingleton | undefined;
+};
+
+export const prisma: PrismaClientSingleton = globalForPrisma.prisma ?? createPrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}

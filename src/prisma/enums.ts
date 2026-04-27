@@ -9,7 +9,44 @@
 * 🟢 You can import this file directly.
 */
 
+export const AISkill = {
+  TEXT: 'TEXT',
+  IMAGE: 'IMAGE',
+  VIDEO: 'VIDEO',
+  AUDIO: 'AUDIO',
+  MULTIMODAL: 'MULTIMODAL'
+} as const
+
+export type AISkill = (typeof AISkill)[keyof typeof AISkill]
 
 
-// This file is empty because there are no enums in the schema.
-export {}
+export const MediaType = {
+  IMAGE: 'IMAGE',
+  VIDEO: 'VIDEO',
+  AUDIO: 'AUDIO',
+  DOCUMENT: 'DOCUMENT',
+  CODE: 'CODE',
+  ARCHIVE: 'ARCHIVE'
+} as const
+
+export type MediaType = (typeof MediaType)[keyof typeof MediaType]
+
+
+export const GenJobStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
+} as const
+
+export type GenJobStatus = (typeof GenJobStatus)[keyof typeof GenJobStatus]
+
+
+export const MessageRole = {
+  USER: 'USER',
+  ASSISTANT: 'ASSISTANT',
+  SYSTEM: 'SYSTEM'
+} as const
+
+export type MessageRole = (typeof MessageRole)[keyof typeof MessageRole]

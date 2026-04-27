@@ -43,6 +43,41 @@ export type User = Prisma.UserModel
  */
 export type VerificationToken = Prisma.VerificationTokenModel
 /**
+ * Model PasswordResetToken
+ * 
+ */
+export type PasswordResetToken = Prisma.PasswordResetTokenModel
+/**
+ * Model UserApiKey
+ * 
+ */
+export type UserApiKey = Prisma.UserApiKeyModel
+/**
+ * Model Project
+ * 
+ */
+export type Project = Prisma.ProjectModel
+/**
+ * Model Conversation
+ * 
+ */
+export type Conversation = Prisma.ConversationModel
+/**
+ * Model Message
+ * 
+ */
+export type Message = Prisma.MessageModel
+/**
+ * Model Media
+ * 
+ */
+export type Media = Prisma.MediaModel
+/**
+ * Model GenJob
+ * 
+ */
+export type GenJob = Prisma.GenJobModel
+/**
  * Model Setting
  * 
  */

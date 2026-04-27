@@ -56,6 +56,13 @@ export const ModelName = {
   Session: 'Session',
   User: 'User',
   VerificationToken: 'VerificationToken',
+  PasswordResetToken: 'PasswordResetToken',
+  UserApiKey: 'UserApiKey',
+  Project: 'Project',
+  Conversation: 'Conversation',
+  Message: 'Message',
+  Media: 'Media',
+  GenJob: 'GenJob',
   Setting: 'Setting'
 } as const
 
@@ -140,6 +147,141 @@ export const VerificationTokenScalarFieldEnum = {
 } as const
 
 export type VerificationTokenScalarFieldEnum = (typeof VerificationTokenScalarFieldEnum)[keyof typeof VerificationTokenScalarFieldEnum]
+
+
+export const PasswordResetTokenScalarFieldEnum = {
+  id: 'id',
+  token: 'token',
+  userId: 'userId',
+  expires: 'expires',
+  used: 'used',
+  created_at: 'created_at'
+} as const
+
+export type PasswordResetTokenScalarFieldEnum = (typeof PasswordResetTokenScalarFieldEnum)[keyof typeof PasswordResetTokenScalarFieldEnum]
+
+
+export const UserApiKeyScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  provider: 'provider',
+  label: 'label',
+  api_key: 'api_key',
+  is_active: 'is_active',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+} as const
+
+export type UserApiKeyScalarFieldEnum = (typeof UserApiKeyScalarFieldEnum)[keyof typeof UserApiKeyScalarFieldEnum]
+
+
+export const ProjectScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  description: 'description',
+  emoji: 'emoji',
+  color: 'color',
+  system_prompt: 'system_prompt',
+  is_pinned: 'is_pinned',
+  is_archived: 'is_archived',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+} as const
+
+export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
+
+
+export const ConversationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  project_id: 'project_id',
+  title: 'title',
+  provider: 'provider',
+  model_id: 'model_id',
+  skill: 'skill',
+  is_starred: 'is_starred',
+  is_pinned: 'is_pinned',
+  is_archived: 'is_archived',
+  total_tokens: 'total_tokens',
+  last_message_at: 'last_message_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+} as const
+
+export type ConversationScalarFieldEnum = (typeof ConversationScalarFieldEnum)[keyof typeof ConversationScalarFieldEnum]
+
+
+export const MessageScalarFieldEnum = {
+  id: 'id',
+  conversation_id: 'conversation_id',
+  role: 'role',
+  content: 'content',
+  model_id: 'model_id',
+  tokens_used: 'tokens_used',
+  is_error: 'is_error',
+  created_at: 'created_at'
+} as const
+
+export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
+
+
+export const MediaScalarFieldEnum = {
+  id: 'id',
+  message_id: 'message_id',
+  bucket: 'bucket',
+  object_key: 'object_key',
+  url: 'url',
+  type: 'type',
+  filename: 'filename',
+  original_filename: 'original_filename',
+  size: 'size',
+  mime_type: 'mime_type',
+  width: 'width',
+  height: 'height',
+  duration: 'duration',
+  gen_prompt: 'gen_prompt',
+  gen_model_id: 'gen_model_id',
+  gen_aspect_ratio: 'gen_aspect_ratio',
+  gen_quality: 'gen_quality',
+  gen_duration: 'gen_duration',
+  gen_fps: 'gen_fps',
+  gen_resolution: 'gen_resolution',
+  is_generated: 'is_generated',
+  created_at: 'created_at'
+} as const
+
+export type MediaScalarFieldEnum = (typeof MediaScalarFieldEnum)[keyof typeof MediaScalarFieldEnum]
+
+
+export const GenJobScalarFieldEnum = {
+  id: 'id',
+  conversation_id: 'conversation_id',
+  message_id: 'message_id',
+  job_type: 'job_type',
+  status: 'status',
+  provider: 'provider',
+  model_id: 'model_id',
+  prompt: 'prompt',
+  aspect_ratio: 'aspect_ratio',
+  quality: 'quality',
+  duration: 'duration',
+  fps: 'fps',
+  resolution: 'resolution',
+  extend_from_media_id: 'extend_from_media_id',
+  extend_from_url: 'extend_from_url',
+  extend_start_sec: 'extend_start_sec',
+  result_url: 'result_url',
+  result_media_id: 'result_media_id',
+  error_message: 'error_message',
+  progress: 'progress',
+  started_at: 'started_at',
+  completed_at: 'completed_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+} as const
+
+export type GenJobScalarFieldEnum = (typeof GenJobScalarFieldEnum)[keyof typeof GenJobScalarFieldEnum]
 
 
 export const SettingScalarFieldEnum = {

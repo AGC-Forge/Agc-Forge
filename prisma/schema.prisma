@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider      = "prisma-client"
   output        = "../src/prisma"
@@ -14,19 +12,48 @@ datasource db {
   provider = "postgresql"
 }
 
+enum AISkill {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  MULTIMODAL
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  CODE
+  ARCHIVE
+}
+
+enum GenJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
 model Role {
   id         String   @id @default(cuid())
   name       String   @db.Text
   level      Int      @default(0)
   created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
   users      User[]
 
   @@unique([name, level], name: "role_name_level_unique")
   @@index([name], name: "role_name_idx")
   @@index([level], name: "role_level_idx")
-  @@index([created_at], name: "role_created_at_idx")
-  @@index([updated_at], name: "role_updated_at_idx")
   @@map("roles")
 }
 
@@ -47,16 +74,7 @@ model Account {
 
   @@unique([provider, providerAccountId], name: "account_provider_providerAccountId_unique")
   @@index([userId], name: "account_userId_idx")
-  @@index([type], name: "account_type_idx")
   @@index([provider], name: "account_provider_idx")
-  @@index([providerAccountId], name: "account_providerAccountId_idx")
-  @@index([refresh_token], name: "account_refresh_token_idx")
-  @@index([access_token], name: "account_access_token_idx")
-  @@index([expires_at], name: "account_expires_at_idx")
-  @@index([token_type], name: "account_token_type_idx")
-  @@index([scope], name: "account_scope_idx")
-  @@index([id_token], name: "account_id_token_idx")
-  @@index([session_state], name: "account_session_state_idx")
   @@map("accounts")
 }
 
@@ -67,14 +85,13 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([sessionToken, userId], name: "session_sessionToken_userId_unique")
-  @@index([sessionToken], name: "session_sessionToken_idx")
   @@index([userId], name: "session_userId_idx")
   @@map("sessions")
 }
 
 model User {
   id                String    @id @default(cuid())
+  clerk_id          String?   @unique @db.Text
   name              String    @db.Text
   email             String    @unique @db.Text
   phone             String?   @unique @db.Text
@@ -86,18 +103,17 @@ model User {
   last_login_at     DateTime?
   is_active         Boolean   @default(true)
   created_at        DateTime  @default(now()) @db.Timestamptz
-  updated_at        DateTime  @default(now()) @db.Timestamptz
-  accounts          Account[]
-  sessions          Session[]
-  chats             Chat[]
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+
+  accounts        Account[]
+  sessions        Session[]
+  projects        Project[]
+  conversations   Conversation[]
+  api_keys        UserApiKey[]
+  password_resets PasswordResetToken[]
 
   @@unique([email, role_id], name: "user_email_role_id_unique")
   @@index([email], name: "user_email_idx")
-  @@index([phone], name: "user_phone_idx")
-  @@index([created_at], name: "user_created_at_idx")
-  @@index([updated_at], name: "user_updated_at_idx")
-  @@index([email_verified_at], name: "user_email_verified_at_idx")
-  @@index([last_login_at], name: "user_last_login_at_idx")
   @@index([is_active], name: "user_is_active_idx")
   @@map("users")
 }
@@ -108,10 +124,200 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token], name: "verification_token_identifier_token_unique")
-  @@index([identifier], name: "verification_token_identifier_idx")
   @@index([token], name: "verification_token_token_idx")
-  @@index([expires], name: "verification_token_expires_idx")
   @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  token      String   @unique @db.Text
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires    DateTime
+  used       Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  @@index([token], name: "password_reset_token_idx")
+  @@index([userId], name: "password_reset_userId_idx")
+  @@map("password_reset_tokens")
+}
+
+model UserApiKey {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   String   @db.Text // 'puter' | 'openrouter' | dll
+  label      String?  @db.Text
+  api_key    String   @db.Text // encrypted dengan ENCRYPTION_KEY dari env
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  @@unique([userId, provider], name: "user_api_key_userId_provider_unique")
+  @@index([userId], name: "user_api_key_userId_idx")
+  @@map("user_api_keys")
+}
+
+model Project {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String         @db.Text
+  description   String?        @db.Text
+  emoji         String?        @db.Text // "🚀" — ikon project
+  color         String?        @db.Text // "#6366f1" — warna label di sidebar
+  /// System prompt default untuk semua conversation di project ini
+  system_prompt String?        @db.Text
+  is_pinned     Boolean        @default(false)
+  is_archived   Boolean        @default(false)
+  created_at    DateTime       @default(now()) @db.Timestamptz
+  updated_at    DateTime       @updatedAt @db.Timestamptz
+  conversations Conversation[]
+
+  @@index([userId], name: "project_userId_idx")
+  @@index([is_pinned], name: "project_is_pinned_idx")
+  @@index([is_archived], name: "project_is_archived_idx")
+  @@index([updated_at], name: "project_updated_at_idx")
+  @@map("projects")
+}
+
+model Conversation {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project_id      String?
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  title           String    @db.Text // auto-generate dari 4-5 kata pertama user
+  /// AI config saat conversation dibuat
+  provider        String    @db.Text // 'anthropic' | 'openai' | 'google' | dll
+  model_id        String    @db.Text // e.g. 'claude-sonnet-4' | 'gpt-4o'
+  skill           AISkill   @default(TEXT)
+  // ── Sidebar state ────────────────────────────────────
+  is_starred      Boolean   @default(false) // bintang / mark star
+  is_pinned       Boolean   @default(false) // pin di atas list
+  is_archived     Boolean   @default(false) // arsip (hidden dari list utama)
+  // ── Stats / metadata ─────────────────────────────────
+  total_tokens    Int?
+  last_message_at DateTime? // untuk sorting "Recent" di sidebar
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+  messages        Message[]
+  gen_jobs        GenJob[]
+
+  @@index([userId], name: "conversation_userId_idx")
+  @@index([project_id], name: "conversation_project_id_idx")
+  @@index([skill], name: "conversation_skill_idx")
+  @@index([is_starred], name: "conversation_is_starred_idx")
+  @@index([is_pinned], name: "conversation_is_pinned_idx")
+  @@index([is_archived], name: "conversation_is_archived_idx")
+  @@index([last_message_at], name: "conversation_last_message_at_idx")
+  @@index([updated_at], name: "conversation_updated_at_idx")
+  @@map("conversations")
+}
+
+model Message {
+  id              String       @id @default(cuid())
+  conversation_id String
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  role            MessageRole  @default(USER)
+  content         String       @db.Text // teks pesan, deskripsi, atau prompt untuk generate
+  model_id        String?      @db.Text // model yang digunakan pada pesan ini
+  tokens_used     Int?
+  is_error        Boolean      @default(false)
+  created_at      DateTime     @default(now()) @db.Timestamptz
+  media           Media[]
+  gen_jobs        GenJob[]
+
+  @@index([conversation_id], name: "message_conversation_id_idx")
+  @@index([role], name: "message_role_idx")
+  @@index([created_at], name: "message_created_at_idx")
+  @@map("messages")
+}
+
+model Media {
+  id                String    @id @default(cuid())
+  message_id        String
+  message           Message   @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  // ── MinIO storage ──────────────────────────────────────
+  bucket            String    @db.Text // nama bucket MinIO, e.g. "aichat-media"
+  object_key        String    @db.Text // path di MinIO, e.g. "uploads/userId/uuid.jpg"
+  url               String    @db.Text // public URL atau presigned URL untuk akses
+  // ── File info ──────────────────────────────────────────
+  type              MediaType
+  filename          String    @db.Text // nama file yang disimpan (uuid.ext)
+  original_filename String    @db.Text // nama file asli dari user
+  size              Int? // bytes
+  mime_type         String?   @db.Text
+  width             Int? // pixel — image & video
+  height            Int? // pixel — image & video
+  duration          Float? // detik — video & audio
+  // ── Generate metadata (image) ──────────────────────────
+  gen_prompt        String?   @db.Text
+  gen_model_id      String?   @db.Text
+  gen_aspect_ratio  String?   @db.Text // "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9"
+  gen_quality       String?   @db.Text // "512" | "1K" | "2K" | "4K"
+  // ── Generate metadata (video) ──────────────────────────
+  gen_duration      Int? // durasi yang di-request (detik)
+  gen_fps           Int? // fps yang di-request
+  gen_resolution    String?   @db.Text // "720p" | "1080p" | "4K"
+  is_generated      Boolean   @default(false) // true = hasil AI, false = upload user
+  created_at        DateTime  @default(now()) @db.Timestamptz
+
+  @@index([message_id], name: "media_message_id_idx")
+  @@index([type], name: "media_type_idx")
+  @@index([is_generated], name: "media_is_generated_idx")
+  @@map("media")
+}
+
+model GenJob {
+  id                   String       @id @default(cuid())
+  conversation_id      String
+  conversation         Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  message_id           String?
+  message              Message?     @relation(fields: [message_id], references: [id], onDelete: SetNull)
+  // ── Job config ──────────────────────────────────────────
+  job_type             AISkill // IMAGE | VIDEO
+  status               GenJobStatus @default(PENDING)
+  provider             String       @db.Text
+  model_id             String       @db.Text
+  prompt               String       @db.Text
+  // ── Image config ────────────────────────────────────────
+  /// Rasio aspek gambar — pilihan: "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "2:3" | "3:2" | "21:9"
+  aspect_ratio         String?      @db.Text
+  /// Kualitas/resolusi output — pilihan: "512" | "1K" | "2K" | "4K"
+  quality              String?      @db.Text
+  // ── Video config ────────────────────────────────────────
+  /// Durasi video dalam detik — pilihan: 5 | 10 | 15 | 30
+  duration             Int?
+  /// Frame per second — pilihan: 24 | 30 | 60
+  fps                  Int?
+  /// Resolusi video — pilihan: "720p" | "1080p" | "4K"
+  resolution           String?      @db.Text
+  // ── Extend Video feature ────────────────────────────────
+  /// ID Media dari video yang akan di-extend (untuk fitur "Extend Video")
+  extend_from_media_id String?      @db.Text
+  /// URL sumber video yang di-extend (bisa dari MinIO)
+  extend_from_url      String?      @db.Text
+  /// Detik mulai extend (e.g. dari detik ke-8 dari video 10 detik)
+  extend_start_sec     Float?
+  // ── Result ──────────────────────────────────────────────
+  result_url           String?      @db.Text // URL hasil generate (sementara, sebelum disimpan ke MinIO)
+  result_media_id      String?      @db.Text // ID di tabel Media setelah di-download & disimpan
+  error_message        String?      @db.Text
+  // ── Progress ────────────────────────────────────────────
+  /// Progress 0–100, update via Redis pub/sub → SSE ke client
+  progress             Int          @default(0)
+  started_at           DateTime?
+  completed_at         DateTime?
+  created_at           DateTime     @default(now()) @db.Timestamptz
+  updated_at           DateTime     @updatedAt @db.Timestamptz
+
+  @@index([conversation_id], name: "gen_job_conversation_id_idx")
+  @@index([message_id], name: "gen_job_message_id_idx")
+  @@index([status], name: "gen_job_status_idx")
+  @@index([job_type], name: "gen_job_type_idx")
+  @@index([created_at], name: "gen_job_created_at_idx")
+  @@map("gen_jobs")
 }
 
 model Setting {
@@ -120,54 +326,10 @@ model Setting {
   value      String   @db.Text
   group_name String   @db.Text
   created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
 
   @@unique([key, group_name], name: "setting_key_group_name_unique")
   @@index([key], name: "setting_key_idx")
   @@index([group_name], name: "setting_group_name_idx")
   @@map("settings")
-}
-
-enum ChatType {
-  TEXT
-  IMAGE
-  VIDEO
-  AUDIO
-  MULTIMODAL
-}
-
-model Chat {
-  id         String      @id @default(cuid())
-  prompt     String      @db.Text
-  output     String      @db.Text
-  provider   String      @db.Text
-  model_id   String      @db.Text
-  userId     String
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type       ChatType
-  created_at DateTime    @default(now()) @db.Timestamptz
-  updated_at DateTime    @default(now()) @db.Timestamptz
-  chatMedias ChatMedia[]
-
-  @@map("chats")
-}
-
-enum MediaType {
-  TEXT
-  IMAGE
-  VIDEO
-  AUDIO
-  DOCUMENT
-}
-
-model ChatMedia {
-  id         String    @id @default(cuid())
-  chatId     String
-  chat       Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  media      String    @db.Text
-  type       MediaType
-  created_at DateTime  @default(now()) @db.Timestamptz
-  updated_at DateTime  @default(now()) @db.Timestamptz
-
-  @@map("chat_media")
 }

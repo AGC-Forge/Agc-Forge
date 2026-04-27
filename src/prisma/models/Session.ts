@@ -188,14 +188,13 @@ export type SessionOrderByWithRelationInput = {
 export type SessionWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   sessionToken?: string
-  session_sessionToken_userId_unique?: Prisma.SessionSession_sessionToken_userId_uniqueCompoundUniqueInput
   AND?: Prisma.SessionWhereInput | Prisma.SessionWhereInput[]
   OR?: Prisma.SessionWhereInput[]
   NOT?: Prisma.SessionWhereInput | Prisma.SessionWhereInput[]
   userId?: Prisma.StringFilter<"Session"> | string
   expires?: Prisma.DateTimeFilter<"Session"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
-}, "id" | "sessionToken" | "session_sessionToken_userId_unique">
+}, "id" | "sessionToken">
 
 export type SessionOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -263,11 +262,6 @@ export type SessionUncheckedUpdateManyInput = {
   sessionToken?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   expires?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-}
-
-export type SessionSession_sessionToken_userId_uniqueCompoundUniqueInput = {
-  sessionToken: string
-  userId: string
 }
 
 export type SessionCountOrderByAggregateInput = {
