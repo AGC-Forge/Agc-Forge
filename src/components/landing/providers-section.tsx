@@ -1,7 +1,4 @@
-"use-client";
-
 import Image from "next/image";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
@@ -80,11 +77,12 @@ const PROVIDERS = [
 function ProviderBadge({
   provider,
   className,
+  type = "logo",
 }: {
   provider: (typeof PROVIDERS)[0];
   className?: string;
+  type?: "logo" | "name";
 }) {
-  const [typeLogoHover, setTypeLogoHover] = useState<"logo" | "name">("logo");
   return (
     <div
       className={cn(
@@ -94,7 +92,7 @@ function ProviderBadge({
       )}
     >
       {/* Color dot */}
-      {typeLogoHover === "name" ? (
+      {type === "name" ? (
         <div
           className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
           style={{
@@ -180,6 +178,7 @@ export function ProvidersSection() {
               <ProviderBadge
                 key={`${provider.name}-${i}`}
                 provider={provider}
+                type="logo"
               />
             ))}
           </div>
@@ -198,6 +197,7 @@ export function ProvidersSection() {
               <ProviderBadge
                 key={`${provider.name}-r-${i}`}
                 provider={provider}
+                type="logo"
               />
             ))}
           </div>
