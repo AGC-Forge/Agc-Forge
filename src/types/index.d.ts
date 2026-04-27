@@ -376,6 +376,53 @@ declare global {
     message?: string;
     fieldErrors?: Record<string, string[]>;
   }
+
+  // ── Store ───────────────────────────────────────────────────
+  interface ChatStore {
+    // ── Streaming ────────────────────────────────────────────────────────────
+    isStreaming: boolean;
+    streamingContent: string;
+    streamingConversationId: string | null;
+    // ── UI State ─────────────────────────────────────────────────────────────
+    isGenerating: boolean; // untuk image/video async
+    generatingJobId: string | null;
+    // ── Actions ───────────────────────────────────────────────────────────────
+    startStream: (conversationId: string) => void;
+    appendStream: (chunk: string) => void;
+    endStream: () => void;
+    setGenerating: (jobId: string | null) => void;
+    reset: () => void;
+  }
+  interface ModelStore {
+    selectedProvider: AIProvider;
+    selectedModel: AIModel | null;
+    activeSkill: AISkill;
+    setProvider: (provider: AIProvider) => void;
+    setModel: (model: AIModel) => void;
+    setSkill: (skill: AISkill) => void;
+    /** Ambil semua model yang cocok dengan skill aktif */
+    getFilteredModels: () => AIModel[];
+    /** Ambil model pertama yang cocok setelah ganti skill */
+    autoSelectModel: (skill: AISkill) => void;
+  }
+  interface UIStore {
+    // ── Sidebar ───────────────────────────────────────────────────────────────
+    sidebarOpen: boolean;
+    setSidebarOpen: (open: boolean) => void;
+    toggleSidebar: () => void;
+    // ── Active state ──────────────────────────────────────────────────────────
+    activeConversationId: string | null;
+    activeProjectId: string | null;
+    setActiveConversation: (id: string | null) => void;
+    setActiveProject: (id: string | null) => void;
+    // ── Search ────────────────────────────────────────────────────────────────
+    searchQuery: string;
+    setSearchQuery: (q: string) => void;
+    // ── Filter ────────────────────────────────────────────────────────────────
+    showArchived: boolean;
+    setShowArchived: (v: boolean) => void;
+  }
+
 }
 
 export { };
