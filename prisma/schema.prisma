@@ -111,6 +111,7 @@ model User {
   conversations   Conversation[]
   api_keys        UserApiKey[]
   password_resets PasswordResetToken[]
+  puterSession    PuterSession?
 
   @@unique([email, role_id], name: "user_email_role_id_unique")
   @@index([email], name: "user_email_idx")
@@ -332,4 +333,32 @@ model Setting {
   @@index([key], name: "setting_key_idx")
   @@index([group_name], name: "setting_group_name_idx")
   @@map("settings")
+}
+
+model PuterSession {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// JWT token dari puter.auth.signIn() — format: "eyJhbG..."
+  /// Disimpan encrypted menggunakan AES-256-GCM (sama seperti UserApiKey)
+  token          String    @db.Text
+  /// Username Puter user (e.g. "navy_river_8149")
+  puter_username String?   @db.Text
+  /// UUID Puter user (e.g. "0e7c654d-3db0-4be9-bd9c-50aa3b1a981a")
+  puter_uid      String?   @db.Text
+  /// App UID dari Puter (e.g. "app-23924891-45b3-4190-b75e-dd72aadf3d30")
+  app_uid        String?   @db.Text
+  /// Apakah token masih valid (invalidasi saat logout)
+  is_valid       Boolean   @default(true)
+  /// Waktu token terakhir divalidasi ke Puter API
+  validated_at   DateTime?
+  /// Waktu expired token (nullable — Puter token bisa long-lived)
+  expires_at     DateTime?
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+
+  @@unique([userId], name: "puter_session_userId_unique") // satu token aktif per user
+  @@index([userId], name: "puter_session_userId_idx")
+  @@index([is_valid], name: "puter_session_is_valid_idx")
+  @@map("puter_sessions")
 }

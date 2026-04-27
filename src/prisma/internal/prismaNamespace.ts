@@ -396,7 +396,8 @@ export const ModelName = {
   Message: 'Message',
   Media: 'Media',
   GenJob: 'GenJob',
-  Setting: 'Setting'
+  Setting: 'Setting',
+  PuterSession: 'PuterSession'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -412,7 +413,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "role" | "account" | "session" | "user" | "verificationToken" | "passwordResetToken" | "userApiKey" | "project" | "conversation" | "message" | "media" | "genJob" | "setting"
+    modelProps: "role" | "account" | "session" | "user" | "verificationToken" | "passwordResetToken" | "userApiKey" | "project" | "conversation" | "message" | "media" | "genJob" | "setting" | "puterSession"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1378,6 +1379,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PuterSession: {
+      payload: Prisma.$PuterSessionPayload<ExtArgs>
+      fields: Prisma.PuterSessionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PuterSessionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PuterSessionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>
+        }
+        findFirst: {
+          args: Prisma.PuterSessionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PuterSessionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>
+        }
+        findMany: {
+          args: Prisma.PuterSessionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>[]
+        }
+        create: {
+          args: Prisma.PuterSessionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>
+        }
+        createMany: {
+          args: Prisma.PuterSessionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PuterSessionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>[]
+        }
+        delete: {
+          args: Prisma.PuterSessionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>
+        }
+        update: {
+          args: Prisma.PuterSessionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>
+        }
+        deleteMany: {
+          args: Prisma.PuterSessionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PuterSessionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PuterSessionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>[]
+        }
+        upsert: {
+          args: Prisma.PuterSessionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PuterSessionPayload>
+        }
+        aggregate: {
+          args: Prisma.PuterSessionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePuterSession>
+        }
+        groupBy: {
+          args: Prisma.PuterSessionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PuterSessionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PuterSessionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PuterSessionCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1629,6 +1704,23 @@ export const SettingScalarFieldEnum = {
 } as const
 
 export type SettingScalarFieldEnum = (typeof SettingScalarFieldEnum)[keyof typeof SettingScalarFieldEnum]
+
+
+export const PuterSessionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  token: 'token',
+  puter_username: 'puter_username',
+  puter_uid: 'puter_uid',
+  app_uid: 'app_uid',
+  is_valid: 'is_valid',
+  validated_at: 'validated_at',
+  expires_at: 'expires_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+} as const
+
+export type PuterSessionScalarFieldEnum = (typeof PuterSessionScalarFieldEnum)[keyof typeof PuterSessionScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1902,6 +1994,7 @@ export type GlobalOmitConfig = {
   media?: Prisma.MediaOmit
   genJob?: Prisma.GenJobOmit
   setting?: Prisma.SettingOmit
+  puterSession?: Prisma.PuterSessionOmit
 }
 
 /* Types for Logging */

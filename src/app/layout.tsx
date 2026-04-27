@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { PuterAuthProvider } from "@/components/puter/puter-auth-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,8 +52,15 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
-            <Toaster position="bottom-right" richColors />
+            {/*
+              PuterAuthProvider:
+              - Jika NEXT_PUBLIC_PUTER_AUTO_TOKEN=false → transparan, tidak ada logika
+              - Jika NEXT_PUBLIC_PUTER_AUTO_TOKEN=true → load puter.js, sync token, auto-validate
+            */}
+            <PuterAuthProvider>
+              {children}
+              <Toaster position="bottom-right" richColors />
+            </PuterAuthProvider>
           </ThemeProvider>
         </SessionProvider>
       </body>

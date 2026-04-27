@@ -1,13 +1,25 @@
+import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import type { Metadata } from "next";
-import { User, Key } from "lucide-react";
+import { getUserProfileAction } from "@/actions/account";
+import { ProfileSection } from "@/components/account/profile-section";
+import { SecuritySection } from "@/components/account/security-section";
+import { ApiKeysSection } from "@/components/account/api-keys-section";
+import { PuterConnectCard } from "@/components/puter/puter-connect-button";
+import { User } from "lucide-react";
 
-export const metadata: Metadata = { title: "Akun" };
+export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage() {
   const session = await auth();
   if (!session) redirect("/login");
+
+  const profileResult = await getUserProfileAction();
+  if (!profileResult.success || !profileResult.data) {
+    redirect("/chat");
+  }
+
+  const user = profileResult.data;
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -22,41 +34,17 @@ export default async function AccountPage() {
           </p>
         </div>
 
-        {/* Profile card */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/2.5 p-6 space-y-4">
-          <h2 className="text-sm font-medium text-zinc-300">Profile</h2>
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between py-2 border-b border-white/5">
-              <span className="text-sm text-zinc-500">Name</span>
-              <span className="text-sm text-zinc-200">
-                {session.user.name ?? "-"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-white/5">
-              <span className="text-sm text-zinc-500">Email</span>
-              <span className="text-sm text-zinc-200">
-                {session.user.email}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-zinc-500">Role</span>
-              <span className="text-xs bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 rounded-full px-2 py-0.5">
-                {(session.user as any).role ?? "user"}
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* Profile */}
+        <ProfileSection user={user as any} />
 
-        {/* API Keys card */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/2.5 p-6 space-y-4">
-          <h2 className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-            <Key className="h-4 w-4 text-amber-400" />
-            API Keys
-          </h2>
-          <p className="text-sm text-zinc-500">
-            API key management will be available Soon
-          </p>
-        </div>
+        {/* Puter Connection (selalu tampil, baik auto mode maupun static mode) */}
+        <PuterConnectCard />
+
+        {/* Security */}
+        <SecuritySection hasPassword={user.has_password} />
+
+        {/* API Keys */}
+        <ApiKeysSection apiKeys={(user.api_keys ?? []) as any} />
       </div>
     </div>
   );

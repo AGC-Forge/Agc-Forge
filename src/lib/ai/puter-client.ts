@@ -10,17 +10,25 @@
  */
 
 import { init } from "@heyputer/puter.js/src/init.cjs";
+import { decrypt } from "@/lib/encryption";
+import { prisma } from "@/lib/prisma";
 
 let _puterInstance: ReturnType<typeof init> | null = null;
+
+export const PUTER_AUTO_TOKEN_MODE =
+  process.env.PUTER_GET_AUTO_TOKEN_FROM_LOGGED_USER === "true";
+
+export const PUTER_API_BASE = "https://api.puter.com/puterai/openai/v1";
+export const PUTER_AUTH_API = "https://api.puter.com";
 
 export function getPuter() {
   if (!process.env.PUTER_AUTH_TOKEN) {
     throw new Error(
-      "[Puter] PUTER_AUTH_TOKEN tidak ditemukan di environment variables.\n" +
-      "Cara mendapatkan token:\n" +
-      "  1. Login ke https://puter.com\n" +
-      "  2. Buka DevTools → Console\n" +
-      "  3. Ketik: localStorage.getItem('auth_token')"
+      "[Puter] PUTER_AUTH_TOKEN not found in environment variables.\n" +
+      "How to get tokens:\n" +
+      "  1. Login to https://puter.com\n" +
+      "  2. Open DevTools → Console\n" +
+      "  3. Type: localStorage.getItem('auth_token')"
     );
   }
 
@@ -31,19 +39,84 @@ export function getPuter() {
   return _puterInstance;
 }
 
-// ── Puter REST API (OpenAI-compatible) ────────────────────────────────────────
+/**
+ * Ambil token yang akan digunakan untuk Puter API calls.
+ *
+ * Mode 1 (static): ambil dari env PUTER_AUTH_TOKEN
+ * Mode 2 (auto):   ambil dari DB puter_sessions berdasarkan userId
+ */
+export async function getPuterToken(userId?: string): Promise<string> {
+  // Mode 2: Auto token dari user
+  if (PUTER_AUTO_TOKEN_MODE) {
+    if (!userId) {
+      throw new Error(
+        "[Puter] PUTER_GET_AUTO_TOKEN_FROM_LOGGED_USER=true but userId is not given."
+      );
+    }
 
-export const PUTER_API_BASE = "https://api.puter.com/puterai/openai/v1";
+    const session = await prisma.puterSession.findUnique({
+      where: { userId },
+    });
 
-export function getPuterHeaders(): Record<string, string> {
-  if (!process.env.PUTER_AUTH_TOKEN) {
-    throw new Error("[Puter] PUTER_AUTH_TOKEN tidak ditemukan.");
+    if (!session || !session.is_valid) {
+      throw new Error(
+        "[Puter] User not connected to Puter."
+      );
+    }
+
+    // Decrypt token
+    const token = decrypt(session.token);
+    return token;
   }
+
+  // Mode 1: Static token dari env
+  const token = process.env.PUTER_AUTH_TOKEN;
+  if (!token) {
+    throw new Error(
+      "[Puter] PUTER_AUTH_TOKEN not found in environment variables.\n" +
+      "Set PUTER_AUTH_TOKEN or enable PUTER_GET_AUTO_TOKEN_FROM_LOGGED_USER=true"
+    );
+  }
+
+  return token;
+}
+
+/**
+ * Build headers untuk Puter API dengan token yang benar
+ */
+export async function getPuterHeaders(userId?: string): Promise<Record<string, string>> {
+  const token = await getPuterToken(userId);
   return {
-    "Authorization": `Bearer ${process.env.PUTER_AUTH_TOKEN}`,
+    Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
 }
+/**
+ * Validasi token ke Puter API (getUser call)
+ * Return user info atau null jika token invalid
+ */
+export async function validatePuterToken(token: string): Promise<{
+  username: string;
+  uuid: string;
+  email_confirmed: number;
+} | null> {
+  try {
+    const res = await fetch(`${PUTER_AUTH_API}/whoami`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!res.ok) return null;
+    const user = await res.json();
+    if (!user?.uuid) return null;
+    return user;
+  } catch {
+    return null;
+  }
+}
+
 
 /**
  * Stream chat completion via Puter REST API (OpenAI-compatible format)
@@ -54,10 +127,13 @@ export async function puterChatStream(params: {
   messages: Array<{ role: string; content: string | any[] }>;
   max_tokens?: number;
   temperature?: number;
+  userId?: string; // dibutuhkan untuk mode auto-token
 }): Promise<Response> {
+  const headers = await getPuterHeaders(params.userId);
+
   const response = await fetch(`${PUTER_API_BASE}/chat/completions`, {
     method: "POST",
-    headers: getPuterHeaders(),
+    headers,
     body: JSON.stringify({
       model: params.model,
       messages: params.messages,
@@ -69,6 +145,16 @@ export async function puterChatStream(params: {
 
   if (!response.ok) {
     const errorText = await response.text();
+
+    // Token invalid / expired
+    if (response.status === 401) {
+      // Jika mode auto, invalidasi token di DB
+      if (PUTER_AUTO_TOKEN_MODE && params.userId) {
+        await invalidatePuterSession(params.userId);
+      }
+      throw new Error("Token Puter is invalid or has expired.");
+    }
+
     throw new Error(`[Puter Chat] ${response.status}: ${errorText}`);
   }
 
@@ -82,30 +168,45 @@ export async function puterTxt2Img(params: {
   prompt: string;
   model?: string;
   testMode?: boolean;
-}): Promise<{ url: string; blob?: Blob }> {
-  const puter = getPuter();
+  userId?: string;
+}): Promise<{ url: string }> {
+  // Puter txt2img melalui REST API (bukan SDK untuk server-side)
+  const headers = await getPuterHeaders(params.userId);
 
-  // puter.ai.txt2img returns an HTMLImageElement in browser,
-  // or an object with URL in Node.js
-  const result = await (puter.ai as any).txt2img(
-    params.prompt,
-    params.testMode ?? false,
-    { model: params.model }
-  );
-
-  // Handle berbagai format response
-  if (typeof result === "string") {
-    return { url: result };
-  }
-  if (result?.src) {
-    return { url: result.src };
-  }
-  if (result?.url) {
-    return { url: result.url };
+  if (params.testMode) {
+    // Return placeholder untuk dev
+    return { url: "https://picsum.photos/1024/1024" };
   }
 
-  throw new Error("[Puter] Format response txt2img tidak dikenali");
+  // Puter image generation via chat API dengan model image
+  const res = await fetch(`${PUTER_API_BASE}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: params.model ?? "openai/dall-e-3",
+      messages: [{ role: "user", content: params.prompt }],
+      stream: false,
+    }),
+  });
+
+  if (!res.ok) {
+    if (res.status === 401 && PUTER_AUTO_TOKEN_MODE && params.userId) {
+      await invalidatePuterSession(params.userId);
+    }
+    throw new Error(`[Puter Image] ${res.status}: ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  // Image response: data[0].url atau message.content
+  const url =
+    data?.data?.[0]?.url ??
+    data?.choices?.[0]?.message?.content ??
+    "";
+
+  if (!url) throw new Error("[Puter Image] Format response unknown.");
+  return { url };
 }
+
 
 /**
  * Generate video via Puter.js Node.js client
@@ -114,18 +215,105 @@ export async function puterTxt2Vid(params: {
   prompt: string;
   model?: string;
   testMode?: boolean;
+  userId?: string;
 }): Promise<{ url: string }> {
-  const puter = getPuter();
+  const headers = await getPuterHeaders(params.userId);
 
-  const result = await (puter.ai as any).txt2vid(
-    params.prompt,
-    params.testMode ?? false,
-    { model: params.model }
-  );
+  if (params.testMode) {
+    return { url: "https://www.w3schools.com/html/mov_bbb.mp4" };
+  }
 
-  if (typeof result === "string") return { url: result };
-  if (result?.src) return { url: result.src };
-  if (result?.url) return { url: result.url };
+  const res = await fetch(`${PUTER_API_BASE}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: params.model ?? "bytedance/seedance-1.0-pro",
+      messages: [{ role: "user", content: params.prompt }],
+      stream: false,
+    }),
+  });
 
-  throw new Error("[Puter] Format response txt2vid tidak dikenali");
+  if (!res.ok) {
+    if (res.status === 401 && PUTER_AUTO_TOKEN_MODE && params.userId) {
+      await invalidatePuterSession(params.userId);
+    }
+    throw new Error(`[Puter Video] ${res.status}: ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  const url =
+    data?.data?.[0]?.url ??
+    data?.choices?.[0]?.message?.content ??
+    "";
+
+  if (!url) throw new Error("[Puter Video] Format response unknown.");
+  return { url };
+}
+/** Invalidasi token Puter user di DB */
+export async function invalidatePuterSession(userId: string): Promise<void> {
+  await prisma.puterSession
+    .updateMany({
+      where: { userId },
+      data: { is_valid: false },
+    })
+    .catch(() => { }); // silent — jangan crash request
+}
+
+/** Simpan/update Puter token ke DB */
+export async function savePuterSession(params: {
+  userId: string;
+  token: string; // plaintext — akan di-encrypt
+  puter_username?: string;
+  puter_uid?: string;
+  app_uid?: string;
+}): Promise<void> {
+  const { encrypt } = await import("@/lib/encryption");
+  const encryptedToken = encrypt(params.token);
+
+  await prisma.puterSession.upsert({
+    where: { userId: params.userId },
+    create: {
+      userId: params.userId,
+      token: encryptedToken,
+      puter_username: params.puter_username ?? null,
+      puter_uid: params.puter_uid ?? null,
+      app_uid: params.app_uid ?? null,
+      is_valid: true,
+      validated_at: new Date(),
+    },
+    update: {
+      token: encryptedToken,
+      puter_username: params.puter_username ?? undefined,
+      puter_uid: params.puter_uid ?? undefined,
+      app_uid: params.app_uid ?? undefined,
+      is_valid: true,
+      validated_at: new Date(),
+    },
+  });
+}
+
+/** Ambil info Puter session user (untuk ditampilkan di UI) */
+export async function getPuterSessionInfo(userId: string): Promise<{
+  connected: boolean;
+  puter_username?: string | null;
+  puter_uid?: string | null;
+  validated_at?: Date | null;
+} | null> {
+  const session = await prisma.puterSession.findUnique({
+    where: { userId },
+    select: {
+      is_valid: true,
+      puter_username: true,
+      puter_uid: true,
+      validated_at: true,
+    },
+  });
+
+  if (!session) return { connected: false };
+  return {
+    connected: session.is_valid,
+    puter_username: session.puter_username,
+    puter_uid: session.puter_uid,
+    validated_at: session.validated_at,
+  };
 }

@@ -1,9 +1,22 @@
 import type { Metadata } from "next";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { getSettingsAction } from "@/actions/settings";
+import { SettingsForm } from "@/components/settings/settings-form";
 import { Settings } from "lucide-react";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  const settingsResult = await getSettingsAction();
+  const currentSettings = settingsResult.data ?? {};
+
+  const roleLevel = (session.user as any).role_level ?? 0;
+  const isAdmin = roleLevel >= 100;
+
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="mx-auto w-full max-w-2xl px-6 py-8 space-y-8">
@@ -16,11 +29,7 @@ export default function SettingsPage() {
             Configure application preferences
           </p>
         </div>
-        <div className="rounded-2xl border border-white/[0.07] bg-white/2.5 p-6">
-          <p className="text-sm text-zinc-500">
-            Settings detail will be available in Phase 7.
-          </p>
-        </div>
+        <SettingsForm currentSettings={currentSettings} isAdmin={isAdmin} />
       </div>
     </div>
   );

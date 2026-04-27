@@ -82,3 +82,8 @@ export type GenJob = Prisma.GenJobModel
  * 
  */
 export type Setting = Prisma.SettingModel
+/**
+ * Model PuterSession
+ * 
+ */
+export type PuterSession = Prisma.PuterSessionModel

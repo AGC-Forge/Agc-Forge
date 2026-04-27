@@ -63,7 +63,8 @@ export const ModelName = {
   Message: 'Message',
   Media: 'Media',
   GenJob: 'GenJob',
-  Setting: 'Setting'
+  Setting: 'Setting',
+  PuterSession: 'PuterSession'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -294,6 +295,23 @@ export const SettingScalarFieldEnum = {
 } as const
 
 export type SettingScalarFieldEnum = (typeof SettingScalarFieldEnum)[keyof typeof SettingScalarFieldEnum]
+
+
+export const PuterSessionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  token: 'token',
+  puter_username: 'puter_username',
+  puter_uid: 'puter_uid',
+  app_uid: 'app_uid',
+  is_valid: 'is_valid',
+  validated_at: 'validated_at',
+  expires_at: 'expires_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+} as const
+
+export type PuterSessionScalarFieldEnum = (typeof PuterSessionScalarFieldEnum)[keyof typeof PuterSessionScalarFieldEnum]
 
 
 export const SortOrder = {

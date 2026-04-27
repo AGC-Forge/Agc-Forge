@@ -8,13 +8,11 @@ export const runtime = "nodejs";
 export const maxDuration = 120; // 2 menit max untuk streaming
 
 export async function POST(req: NextRequest) {
-  // ── Auth ──────────────────────────────────────────────────────────────────
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // ── Parse body ────────────────────────────────────────────────────────────
   let body: {
     conversationId: string;
     content: string;
@@ -42,10 +40,10 @@ export async function POST(req: NextRequest) {
   } = body;
 
   if (!conversationId || !content || !model) {
-    return NextResponse.json({ error: "conversationId, content, model are required fields" }, { status: 400 });
+    return NextResponse.json({ error: "conversationId, content, model are required" }, { status: 400 });
   }
 
-  // ── Verifikasi conversation milik user ────────────────────────────────────
+  // Verifikasi conversation milik user
   const conversation = await prisma.conversation.findFirst({
     where: { id: conversationId, userId: session.user.id },
     include: { project: { select: { system_prompt: true } } },
@@ -55,8 +53,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  // ── Simpan user message ke DB ─────────────────────────────────────────────
-  const userMessage = await prisma.message.create({
+  // Simpan user message
+  await prisma.message.create({
     data: {
       conversation_id: conversationId,
       role: "USER",
@@ -65,62 +63,70 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // ── Update conversation last_message_at ───────────────────────────────────
   await prisma.conversation.update({
     where: { id: conversationId },
     data: { last_message_at: new Date() },
   });
 
-  // ── Proses file attachments ───────────────────────────────────────────────
+  // Proses file attachments
   const processedFiles = await Promise.all(
     mediaUrls.map((f) => processFileForAI(f.url, f.filename, f.mimeType))
   );
 
-  // ── Tentukan system prompt (project > param > default) ────────────────────
   const finalSystemPrompt =
     conversation.project?.system_prompt ||
     systemPrompt ||
-    "You are an AI assistant that can help, be honest, and be accurate.";
+    "You are an AI assistant who is helpful, honest, and accurate.";
 
-  // ── Bangun messages array ─────────────────────────────────────────────────
   const messages = buildMessagesWithFiles({
     textContent: content,
     processedFiles,
-    history: history.slice(-30), // max 30 messages history
+    history: history.slice(-30),
     systemPrompt: finalSystemPrompt,
   });
 
   // ── Stream dari Puter API ─────────────────────────────────────────────────
+  // userId dikirim agar bisa ambil token yang benar (auto-mode atau static-mode)
   let puterResponse: Response;
   try {
-    puterResponse = await puterChatStream({ model, messages });
+    puterResponse = await puterChatStream({
+      model,
+      messages,
+      userId: session.user.id, // ← KEY: pass userId untuk auto-token mode
+    });
   } catch (err: any) {
     console.error("[Chat API] Puter stream error:", err);
 
-    // Simpan error message ke DB
     await prisma.message.create({
       data: {
         conversation_id: conversationId,
         role: "ASSISTANT",
-        content: `Error: ${err.message ?? "AI connection failed"}`,
+        content: `Error: ${err.message ?? "Failed to connect to AI assistant"}`,
         model_id: model,
         is_error: true,
       },
     });
 
+    // Jika error karena token invalid, kirim status khusus
+    if (err.message?.includes("Token Puter") || err.message?.includes("not logged in")) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          code: "PUTER_AUTH_REQUIRED",
+        },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
-      { error: err.message ?? "AI connection failed" },
+      { error: err.message ?? "Failed to connect to AI assistant" },
       { status: 502 }
     );
   }
 
-  // ── Transform stream: collect + save ke DB setelah selesai ───────────────
-  let fullContent = "";
-  let totalTokens = 0;
-  const assistantMessageId = crypto.randomUUID();
-
   // Pre-create assistant message placeholder
-  const assistantMessage = await prisma.message.create({
+  const assistantMessageId = crypto.randomUUID();
+  await prisma.message.create({
     data: {
       id: assistantMessageId,
       conversation_id: conversationId,
@@ -130,12 +136,13 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Transform stream: pass-through ke client + collect content
+  let fullContent = "";
+  let totalTokens = 0;
+
   const transformStream = new TransformStream<Uint8Array, Uint8Array>({
     async transform(chunk, controller) {
       controller.enqueue(chunk);
 
-      // Parse SSE chunks untuk collect full content
       const text = new TextDecoder().decode(chunk);
       const lines = text.split("\n").filter((l) => l.startsWith("data: "));
 
@@ -144,42 +151,26 @@ export async function POST(req: NextRequest) {
         if (data === "[DONE]") continue;
         try {
           const parsed = JSON.parse(data);
-          // OpenAI format
           const delta =
             parsed.choices?.[0]?.delta?.content ??
-            // Anthropic format (via Puter)
             parsed.delta?.text ??
             "";
           if (delta) fullContent += delta;
-
-          // Collect token usage jika ada
-          if (parsed.usage) {
-            totalTokens = parsed.usage.total_tokens ?? 0;
-          }
+          if (parsed.usage) totalTokens = parsed.usage.total_tokens ?? 0;
         } catch { }
       }
     },
 
     async flush() {
-      // Stream selesai — update assistant message di DB
       if (fullContent) {
         await prisma.message.update({
           where: { id: assistantMessageId },
-          data: {
-            content: fullContent,
-            tokens_used: totalTokens || null,
-          },
+          data: { content: fullContent, tokens_used: totalTokens || null },
         });
-
-        // Update total tokens di conversation
         if (totalTokens > 0) {
           await prisma.conversation.update({
             where: { id: conversationId },
-            data: {
-              total_tokens: {
-                increment: totalTokens,
-              },
-            },
+            data: { total_tokens: { increment: totalTokens } },
           });
         }
       }
@@ -190,8 +181,9 @@ export async function POST(req: NextRequest) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      "X-Accel-Buffering": "no", // Disable Nginx buffering untuk SSE
+      "X-Accel-Buffering": "no",
       "Connection": "keep-alive",
     },
   });
 }
+

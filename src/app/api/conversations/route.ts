@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/conversations — ambil semua conversations user

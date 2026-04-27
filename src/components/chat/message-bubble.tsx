@@ -323,7 +323,7 @@ export function MessageBubble({
           )}
         >
           <span className="text-[10px] text-zinc-600">
-            {new Date(message.created_at).toLocaleTimeString("id-ID", {
+            {new Date(message.created_at).toLocaleTimeString("en-US", {
               hour: "2-digit",
               minute: "2-digit",
             })}
