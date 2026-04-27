@@ -30,7 +30,7 @@ function isAuthRoute(pathname: string): boolean {
 
 // ── Middleware ──────────────────────────────────────────────────────────────
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // 1. NextAuth API routes — selalu loloskan
@@ -88,15 +88,14 @@ export async function middleware(req: NextRequest) {
 }
 
 
-export const config = {
-  // Jalankan middleware di semua route kecuali static files Next.js
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
-};
 // export const config = {
 //   matcher: [
-//     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-//     "/(api|trpc)(.*)",
+//     "/((?!_next/static|_next/image|favicon.ico).*)",
 //   ],
 // };
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};

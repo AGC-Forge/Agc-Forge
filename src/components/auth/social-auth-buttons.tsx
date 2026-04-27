@@ -65,7 +65,7 @@ export function SocialAuthButtons({ mode }: SocialAuthButtonsProps) {
   const label = mode === "login" ? "Login" : "Register";
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid gap-3">
       <Button
         type="button"
         variant="outline"
@@ -93,7 +93,7 @@ export function SocialAuthButtons({ mode }: SocialAuthButtonsProps) {
         ) : (
           <GoogleIcon />
         )}
-        <span className="ml-2">{label} with Google</span>
+        <span className="">{label} with Google</span>
       </Button>
     </div>
   );
